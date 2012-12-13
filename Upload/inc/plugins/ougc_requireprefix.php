@@ -46,7 +46,8 @@ function ougc_requireprefix_info()
 		'author'		=> 'Omar G.',
 		'authorsite'	=> 'http://udezain.com.ar/',
 		'version'		=> '1.0',
-		'compatibility'	=> '16*'
+		'compatibility'	=> '16*',
+		'guid'			=> '880c8f78b84a26968e356500498c85a4'
 	);
 }
 
