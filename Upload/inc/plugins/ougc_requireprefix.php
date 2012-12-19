@@ -42,9 +42,9 @@ function ougc_requireprefix_info()
 	return array(
 		'name'			=> 'OUGC Require Prefix',
 		'description'	=> $lang->ougc_requireprefix_d,
-		'website'		=> 'http://udezain.com.ar/',
+		'website'		=> 'http://mods.mybb.com/view/ougc-require-prefix',
 		'author'		=> 'Omar G.',
-		'authorsite'	=> 'http://udezain.com.ar/',
+		'authorsite'	=> 'http://community.mybb.com/user-25096.html',
 		'version'		=> '1.0',
 		'compatibility'	=> '16*',
 		'guid'			=> '880c8f78b84a26968e356500498c85a4'
@@ -62,6 +62,9 @@ function ougc_requireprefix_activate()
 		$query = $db->simple_select('settings', 'MAX(disporder) AS max_disporder', 'gid=\'13\'');
 		$disporder = (int)$db->fetch_field($query, 'max_disporder');
 
+		$query = $db->simple_select('settinggroups', 'gid', 'name=\'member\'');
+		$gid = (int)$db->fetch_field($query, 'gid');
+
 		$db->insert_query('settings', array(
 			'name'			=> 'ougc_requireprefix',
 			'title'			=> $db->escape_string($lang->ougc_requireprefix_forums),
@@ -69,7 +72,7 @@ function ougc_requireprefix_activate()
 			'optionscode'	=> 'text',
 			'value'			=> '',
 			'disporder'		=> $disporder+1,
-			'gid'			=> 13
+			'gid'			=> ($gid ? $gid : 13)
 		));
 	}
 }
@@ -137,7 +140,7 @@ function ougc_requireprefix(&$dh)
 }
 
 // Check if user meets user group memberships
-function ougc_requireprefix_check_groups($groups_comma)
+function ougc_requireprefix_check_groups($groups)
 {
 	if(empty($groups))
 	{
