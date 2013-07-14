@@ -4,9 +4,9 @@
  *
  *   OUGC Require Prefix plugin (/inc/plugins/ougc_requireprefix.php)
  *	 Author: Omar Gonzalez
- *   Copyright: © 2012 Omar Gonzalez
+ *   Copyright: Â© 2012 - 2013 Omar Gonzalez
  *   
- *   Website: http://community.mybb.com/user-25096.html
+ *   Website: http://omarg.me
  *
  *   Select forums where prefixes are required to create threads.
  *
@@ -31,7 +31,18 @@
 defined('IN_MYBB') or die('This file cannot be accessed directly.');
 
 // Add our hooks
-defined('IN_ADMINCP') or $plugins->add_hook('datahandler_post_validate_thread', 'ougc_requireprefix');
+if(defined('IN_ADMINCP'))
+{
+	$plugins->add_hook('admin_formcontainer_output_row', 'ougc_requireprefix_settings');
+	$plugins->add_hook('admin_config_settings_change_commit', 'ougc_requireprefix_settings_do');
+}
+else
+{
+	$plugins->add_hook('datahandler_post_validate_thread', 'ougc_requireprefix');
+}
+
+// PLUGINLIBRARY
+defined('PLUGINLIBRARY') or define('PLUGINLIBRARY', MYBB_ROOT.'inc/plugins/pluginlibrary.php');
 
 //Necessary plugin information for the ACP plugin manager.
 function ougc_requireprefix_info()
@@ -44,76 +55,99 @@ function ougc_requireprefix_info()
 		'description'	=> $lang->ougc_requireprefix_d,
 		'website'		=> 'http://mods.mybb.com/view/ougc-require-prefix',
 		'author'		=> 'Omar G.',
-		'authorsite'	=> 'http://community.mybb.com/user-25096.html',
+		'authorsite'	=> 'http://omarg.me',
 		'version'		=> '1.0',
 		'compatibility'	=> '16*',
-		'guid'			=> '880c8f78b84a26968e356500498c85a4'
+		'guid'			=> '880c8f78b84a26968e356500498c85a4',
+		'pl_ver'		=> 11
 	);
 }
 
 // _activate routine
 function ougc_requireprefix_activate()
 {
-	if(!ougc_requireprefix_is_installed())
+	global $lang, $PL;
+	$info = ougc_requireprefix_info();
+
+	if(!file_exists(PLUGINLIBRARY))
 	{
-		global $db, $lang;
-		$lang->load('ougc_requireprefix');
+		flash_message($lang->sprintf($lang->ougc_requireprefix_pl, $info['pl_ver']), 'error');
+		admin_redirect('index.php?module=config-plugins');
+	}
+	
+	$PL or require_once PLUGINLIBRARY;
 
-		$query = $db->simple_select('settings', 'MAX(disporder) AS max_disporder', 'gid=\'13\'');
-		$disporder = (int)$db->fetch_field($query, 'max_disporder');
-
-		$query = $db->simple_select('settinggroups', 'gid', 'name=\'member\'');
-		$gid = (int)$db->fetch_field($query, 'gid');
-
-		$db->insert_query('settings', array(
-			'name'			=> 'ougc_requireprefix',
-			'title'			=> $db->escape_string($lang->ougc_requireprefix_forums),
-			'description'	=> $db->escape_string($lang->ougc_requireprefix_forums_d),
+	// Add our settings
+	$PL->settings('ougc_requireprefix', $lang->ougc_requireprefix, $lang->ougc_requireprefix_d, array(
+		'forums'	=> array(
+			'title'			=> $lang->ougc_requireprefix_forums,
+			'description'	=> $lang->ougc_requireprefix_forums_d,
 			'optionscode'	=> 'text',
 			'value'			=> '',
-			'disporder'		=> $disporder+1,
-			'gid'			=> ($gid ? $gid : 13)
-		));
-	}
+		),
+	));
 }
 
 // _is_installed routine
 function ougc_requireprefix_is_installed()
 {
-	global $db;
+	global $settings;
 
-	static $installed = null;
-	if(!isset($installed))
-	{
-		$installed = (bool)$db->fetch_field($db->simple_select('settings', 'sid', 'name=\'ougc_requireprefix\' AND gid=\'13\''), 'sid');
-	}
-
-	return $installed;
+	return isset($settings['ougc_requireprefix_forums']);
 }
 
 // _uninstall routine
 function ougc_requireprefix_uninstall()
 {
-	global $db;
+	global $PL;
+	$PL or require_once PLUGINLIBRARY;
 
-	// Get settings from this plugin
-	$query = $db->simple_select('settings', 'sid', 'name=\'ougc_requireprefix\' AND gid=\'13\'');
+	// Delete the setting
+	$PL->settings_delete('ougc_requireprefix');
+}
 
-	// Delete the group and all its settings.
-	while($sid = $db->fetch_field($query, 'sid'))
+// Hijack settings page
+function ougc_requireprefix_settings(&$args)
+{
+	if($args['row_options']['id'] == 'row_setting_ougc_requireprefix_forums')
 	{
-		$db->delete_query('settings', 'sid=\''.(int)$sid.'\'');
+		global $form, $settings;
+
+		$args['content'] = $form->generate_forum_select('ougc_requireprefix_forums[]', explode(',', (string)$settings['ougc_requireprefix_forums']), array('multiple' => true, 'size' => 5));
 	}
 }
 
+// Save changes to settings
+function ougc_requireprefix_settings_do()
+{
+	global $db, $mybb;
+
+	$query = $db->simple_select('settinggroups', 'name', 'gid=\''.(int)$mybb->input['gid'].'\'');
+
+	if($db->fetch_field($query, 'name') != 'ougc_requireprefix')
+	{
+		return;
+	}
+
+	$fids = array_filter(array_unique(array_map('intval', (array)$mybb->input['ougc_requireprefix_forums'])));
+	$fids = (string)implode(',', $fids);
+
+	$db->update_query('settings', array('value' => $fids), 'name=\'ougc_requireprefix_forums\'');
+
+	rebuild_settings();
+}
+
+// Thread validation
 function ougc_requireprefix(&$dh)
 {
 	global $settings, $cache;
 	$prefix_cache = $cache->read('threadprefixes');
 
-	$fids = array_unique(array_map('intval', explode(',', $settings['ougc_requireprefix'])));
+	$fids = array_unique(array_map('intval', explode(',', $settings['ougc_requireprefix_forums'])));
 	if(in_array($dh->data['fid'], $fids) && !isset($prefix_cache[$dh->data['prefix']]))
 	{
+		global $PL;
+		$PL or require_once PLUGINLIBRARY;
 
 		$has_prefix = false;
 		foreach((array)$prefix_cache as $prefix)
@@ -122,7 +156,7 @@ function ougc_requireprefix(&$dh)
 			{
 				continue;
 			}
-			if($prefix['groups'] != '-1' && !ougc_requireprefix_check_groups($prefix['groups']))
+			if(!in_array($prefix['groups'], array('', '-1'))  && !(bool)$PL->is_member($prefix['groups']))
 			{
 				continue;
 			}
@@ -137,19 +171,4 @@ function ougc_requireprefix(&$dh)
 			$dh->set_error((isset($lang->ougc_requireprefix_error) ? $lang->ougc_requireprefix_error : 'Thread prefixes are required in this forum, please do select a prefix before continuing.'));
 		}
 	}
-}
-
-// Check if user meets user group memberships
-function ougc_requireprefix_check_groups($groups)
-{
-	if(empty($groups))
-	{
-		return true;
-	}
-
-	global $mybb;
-	$usergroups = explode(',', $mybb->user['additionalgroups']);
-	$usergroups[] = $mybb->user['usergroup'];
-
-	return (bool)array_intersect(array_map('intval', explode(',', $groups)), array_map('intval', $usergroups));
 }

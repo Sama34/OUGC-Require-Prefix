@@ -4,9 +4,9 @@
  *
  *   OUGC Require Prefix plugin (/inc/languages/english/admin/ougc_requireprefix.lang.php)
  *	 Author: Omar Gonzalez
- *   Copyright: © 2012 Omar Gonzalez
+ *   Copyright: Â© 2012 - 2013 Omar Gonzalez
  *   
- *   Website: http://community.mybb.com/user-25096.html
+ *   Website: http://omarg.me
  *
  *   Select forums where prefixes are required to create threads.
  *
@@ -32,3 +32,4 @@ $l['ougc_requireprefix_d'] = 'Select forums where prefixes are required to creat
 
 $l['ougc_requireprefix_forums'] = 'Require Prefix Forums';
 $l['ougc_requireprefix_forums_d'] = 'Comma separate list of FID where require thread prefixes for threads to be created.';
+$l['ougc_requireprefix_pl'] = 'This plugin requires <a href="http://mods.mybb.com/view/pluginlibrary">PluginLibrary</a> version {1} or higher.';
